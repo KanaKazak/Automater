@@ -1,4 +1,3 @@
-import time
 import pyautogui
 import keyboard
 import threading
@@ -6,7 +5,7 @@ import cv2
 import numpy as np
 
 # List of reference images
-reference_images = ["C:\\Users\\1\\Desktop\\Automater\\sample1.png", "C:\\Users\\1\\Desktop\\Automater\\sample2.png", "C:\\Users\\1\\Desktop\\Automater\\sample3.png"]
+reference_images = ["C:\\Users\\1\\Desktop\\Automater\\sample1.png"]
 stop_event = threading.Event()
 
 def take_screenshot():
