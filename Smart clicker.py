@@ -6,6 +6,7 @@ import numpy as np
 
 # List of reference images
 reference_images = ["C:\\Users\\1\\Desktop\\Automater\\sample1.png"]
+screenshot_frequency = 3
 stop_event = threading.Event()
 
 def take_screenshot():
@@ -31,7 +32,7 @@ def check_screenshots():
     while not stop_event.is_set():
         screenshot = take_screenshot()
         analyze_screenshot(screenshot)
-        stop_event.wait(5)
+        stop_event.wait(screenshot_frequency)
 
 def listen_for_quit():
     keyboard.wait('q')
