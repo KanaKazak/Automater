@@ -1,42 +1,37 @@
 import time
-import pytesseract
 import pyautogui
-from PIL import Image
 import keyboard
 import threading
 import cv2
 import numpy as np
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-
-# List of triggers to search for in the screenshot
-triggers = ["yes", "confirm", "ok"]
-
+# List of reference images
+reference_images = ["C:\\Users\\1\\Desktop\\Automater\\sample1.png", "C:\\Users\\1\\Desktop\\Automater\\sample2.png", "C:\\Users\\1\\Desktop\\Automater\\sample3.png"]
 stop_event = threading.Event()
 
 def take_screenshot():
     return pyautogui.screenshot()
 
 def analyze_screenshot(screenshot):
-    screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-    data = pytesseract.image_to_data(screenshot_cv, output_type=pytesseract.Output.DICT)
-    return data
-
-def find_and_click_text(data):
-    for trigger in triggers:
-        for i, text in enumerate(data['text']):
-            if trigger.lower() in text.lower():
-                x = data['left'][i] + data['width'][i] // 2
-                y = data['top'][i] + data['height'][i] // 2
-                print(f"Found '{trigger}' at ({x}, {y}), clicking...")
-                pyautogui.click(x, y)
-                return
+    screenshot_gray = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
+    for ref_img in reference_images:
+        template = cv2.imread(ref_img, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            print(f"Error: Could not read {ref_img}")
+            continue
+        res = cv2.matchTemplate(screenshot_gray, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        if max_val > 0.8:
+            h, w = template.shape
+            center_x, center_y = max_loc[0] + w // 2, max_loc[1] + h // 2
+            print(f"Match found with {ref_img} at ({center_x}, {center_y}), clicking...")
+            pyautogui.click(center_x, center_y)
+            return
 
 def check_screenshots():
     while not stop_event.is_set():
         screenshot = take_screenshot()
-        data = analyze_screenshot(screenshot)
-        find_and_click_text(data)
+        analyze_screenshot(screenshot)
         stop_event.wait(5)
 
 def listen_for_quit():
