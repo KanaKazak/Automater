@@ -4,11 +4,13 @@ import pyautogui
 from PIL import Image
 import keyboard
 import threading
+import cv2
+import numpy as np
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-click_position = (500, 500)
-target_text = "are you sure you want to download the file?"
+# List of triggers to search for in the screenshot
+triggers = ["yes", "confirm", "ok"]
 
 stop_event = threading.Event()
 
@@ -16,18 +18,25 @@ def take_screenshot():
     return pyautogui.screenshot()
 
 def analyze_screenshot(screenshot):
-    return pytesseract.image_to_string(screenshot)
+    screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+    data = pytesseract.image_to_data(screenshot_cv, output_type=pytesseract.Output.DICT)
+    return data
+
+def find_and_click_text(data):
+    for trigger in triggers:
+        for i, text in enumerate(data['text']):
+            if trigger.lower() in text.lower():
+                x = data['left'][i] + data['width'][i] // 2
+                y = data['top'][i] + data['height'][i] // 2
+                print(f"Found '{trigger}' at ({x}, {y}), clicking...")
+                pyautogui.click(x, y)
+                return
 
 def check_screenshots():
     while not stop_event.is_set():
         screenshot = take_screenshot()
-        extracted_text = analyze_screenshot(screenshot)
-        print("Extracted Text:", extracted_text)
-
-        if target_text.lower() in extracted_text.lower():
-            print("Target text found! Clicking at", click_position)
-            pyautogui.click(click_position)
-
+        data = analyze_screenshot(screenshot)
+        find_and_click_text(data)
         stop_event.wait(5)
 
 def listen_for_quit():
