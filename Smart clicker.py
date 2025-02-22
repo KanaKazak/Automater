@@ -1,18 +1,23 @@
 import time
-import pytesseract
 import pyautogui
-import cv2
-import numpy as np
 import keyboard
 import threading
+import cv2
+import numpy as np
+import easyocr
+import glob  # For finding multiple reference images
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+# Initialize EasyOCR reader
+reader = easyocr.Reader(['en'])
 
-screenshot_interval = 3  # Interval in seconds to take screenshots
-# List of reference images
-reference_images = ["D:\\Automater-main\\Automater-main\\sample1.png", "D:\\Automater-main\\Automater-main\\sample2.png", "D:\\Automater-main\\Automater-main\\sample3.png"]
+screenshot_interval = 3 # Interval in seconds to take screenshots
 
-# List of triggers (text to detect on buttons)
+
+# Load all reference images dynamically
+template_files = glob.glob("sample*.png")  # Finds all files like "sample1.png", "sample2.png", etc.
+templates = [cv2.imread(file, cv2.IMREAD_GRAYSCALE) for file in template_files]
+
+# List of triggers to search for in the button text
 triggers = ["Download", "SLOW DOWNLOAD", "Continue"]
 
 stop_event = threading.Event()
@@ -20,39 +25,50 @@ stop_event = threading.Event()
 def take_screenshot():
     return pyautogui.screenshot()
 
-def analyze_screenshot(screenshot):
-    screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-    screenshot_gray = cv2.cvtColor(screenshot_cv, cv2.COLOR_BGR2GRAY)
-    
-    for ref_img in reference_images:
-        template = cv2.imread(ref_img, cv2.IMREAD_GRAYSCALE)
-        if template is None:
-            print(f"Error: Could not read {ref_img}")
-            continue
-        
-        h, w = template.shape
-        res = cv2.matchTemplate(screenshot_gray, template, cv2.TM_CCOEFF_NORMED)
-        threshold = 0.8  # Adjust this threshold as needed
-        loc = np.where(res >= threshold)
-        
-        for pt in zip(*loc[::-1]):
-            x, y = pt[0] + w // 2, pt[1] + h // 2
-            roi = screenshot_cv[y - h//2:y + h//2, x - w//2:x + w//2]  # Extract ROI
-            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            
-            detected_text = pytesseract.image_to_string(roi_gray).strip().lower()
-            print(f"Detected text: {detected_text}")
-            
-            for trigger in triggers:
-                if trigger in detected_text:
-                    print(f"Match found: '{trigger}' at ({x}, {y}), clicking...")
-                    pyautogui.click(x, y)
-                    return
+def find_buttons(screenshot):
+    screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2GRAY)
+    found_buttons = []
 
-def check_screenshots():
+    for template in templates:
+        if template is None:
+            continue
+
+        h, w = template.shape
+
+        # Template matching
+        res = cv2.matchTemplate(screenshot_cv, template, cv2.TM_CCOEFF_NORMED)
+        threshold = 0.8  # Adjust as needed
+        loc = np.where(res >= threshold)
+
+        for pt in zip(*loc[::-1]):
+            x, y = pt[0] + w // 2, pt[1] + h // 2  # Click center of detected button
+            button_region = screenshot_cv[y:y+h, pt[0]:pt[0]+w]  # Crop button region
+            found_buttons.append((x, y, button_region))
+    
+    return found_buttons  # Returns a list of button positions and cropped images
+
+def check_text(button_region):
+    if button_region is None or button_region.size == 0:
+        return False
+
+    results = reader.readtext(button_region)
+    for _, text, _ in results:
+        if any(trigger.lower() in text.lower() for trigger in triggers):
+            print(f"Found matching text: '{text}'")
+            return True
+    
+    return False
+
+def find_and_click():
     while not stop_event.is_set():
         screenshot = take_screenshot()
-        analyze_screenshot(screenshot)
+        buttons = find_buttons(screenshot)
+
+        for x, y, button_region in buttons:
+            if check_text(button_region):  # Click only if text matches
+                print(f"Clicking button at ({x}, {y})")
+                pyautogui.click(x, y)
+
         stop_event.wait(screenshot_interval)
 
 def listen_for_quit():
@@ -61,5 +77,5 @@ def listen_for_quit():
     print("Program stopped.")
 
 if __name__ == "__main__":
-    threading.Thread(target=check_screenshots).start()
+    threading.Thread(target=find_and_click).start()
     listen_for_quit()
