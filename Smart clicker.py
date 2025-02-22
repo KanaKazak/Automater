@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 # List of reference images
-reference_images = ["C:\\Users\\1\\Desktop\\Automater\\sample1.png"]
+reference_images = ["D:\\Automater-main\\Automater-main\\sample1.png", "D:\\Automater-main\\Automater-main\\sample2.png", "D:\\Automater-main\\Automater-main\\sample3.png"]
 screenshot_frequency = 3
 stop_event = threading.Event()
 
