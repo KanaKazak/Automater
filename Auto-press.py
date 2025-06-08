@@ -1,7 +1,9 @@
 import pyautogui
+pyautogui.FAILSAFE = False
 import threading
 import time
 import keyboard  # Added library for listening to keypresses
+
 
 def auto_clicker(interval=1.0, key=None, button='left', hold=False):
     try:
