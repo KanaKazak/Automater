@@ -8,7 +8,6 @@
 # - time: For sleep functionality
 # - numpy: For numerical operations
 # - threading: For running the monitoring in a separate thread
-import time
 import pyautogui
 import cv2
 import numpy as np
@@ -52,6 +51,8 @@ def find_buttons_and_click(frame):
             print(f"[DEBUG] OCR Result: {result}")
 
             for text in result:
+                if not isinstance(text, str):
+                    continue  # Skip non-string results
                 for trigger in triggers:
                     if trigger.lower() in text.lower():
                         print(f"[MATCH] Found '{trigger}' in button at ({x + w//2}, {y + h//2}), clicking...")
